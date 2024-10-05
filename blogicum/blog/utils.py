@@ -10,8 +10,8 @@ def get_post_queryset(
     if filter_published:
         queryset = queryset.filter(
             is_published=True,
-            category__is_published=True,
             pub_date__lte=timezone.now(),
+            status="published"
         )
     if annotate_comments:
         queryset = queryset.annotate(

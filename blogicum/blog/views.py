@@ -1,5 +1,5 @@
 from django.contrib.auth import get_user_model
-from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.views.generic import (
@@ -9,7 +9,6 @@ from django.views.generic import (
     ListView,
     UpdateView,
 )
-from django.http import Http404
 
 from .forms import CommentForm, EditProfileForm, PostForm
 from .mixins import PostListMixin, AuthorRequiredMixin, CommentViewMixin
@@ -36,7 +35,14 @@ class PostDetailView(DetailView):
         )
 
         if post.author != self.request.user:
-            raise Http404("Пост не найден")
+            post = get_object_or_404(
+                get_post_queryset(
+                    Post.objects,
+                    filter_published=True,
+                    annotate_comments=False,
+                ),
+                pk=self.kwargs["post_id"],
+            )
 
         return post
 
@@ -44,7 +50,7 @@ class PostDetailView(DetailView):
         context = super().get_context_data(**kwargs)
         context["comments"] = get_post_queryset(
             self.object.comments.filter(is_published=True),
-            filter_published=False,
+            filter_published=True,
             annotate_comments=False,
         ).select_related("author")
         context["form"] = CommentForm()
@@ -59,7 +65,7 @@ class CategoryPostListView(ListView):
         category = get_object_or_404(
             Category, slug=self.kwargs["category_slug"], is_published=True
         )
-        return get_post_queryset(category.posts)
+        return Post.objects.filter(category=category, is_published=True)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -77,12 +83,6 @@ class CreatePostView(LoginRequiredMixin, CreateView):
         post.author = self.request.user
         post.save()
         return redirect("blog:profile", username=self.request.user.username)
-
-
-class AuthorRequiredMixin(UserPassesTestMixin):
-    def test_func(self):
-        obj = self.get_object()
-        return obj.author == self.request.user
 
 
 class EditPostView(LoginRequiredMixin, AuthorRequiredMixin, UpdateView):
@@ -120,7 +120,7 @@ class ProfileView(ListView):
         )
         return get_post_queryset(
             Post.objects.filter(author=user), filter_published=filter_published
-        )
+        ).order_by("-pub_date")
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
