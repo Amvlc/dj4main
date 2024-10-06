@@ -1,9 +1,9 @@
-from django.contrib.auth.mixins import UserPassesTestMixin
-from django.urls import reverse
 from .const import PAGINATE_BY
 from .models import Post, Comment
-from .utils import get_post_queryset
 from django.shortcuts import get_object_or_404
+from django.urls import reverse
+from .gpq import get_post_queryset
+from django.contrib.auth.mixins import UserPassesTestMixin
 
 
 class PostListMixin:
@@ -24,7 +24,7 @@ class AuthorRequiredMixin(UserPassesTestMixin):
         return obj.author == self.request.user
 
 
-class CommentViewMixin:
+class CommentMixin:
     model = Comment
 
     def get_object(self):
